@@ -11,4 +11,5 @@ gcloud functions \
   --trigger-http \
   --allow-unauthenticated \
   --env-vars-file ${SOURCE_DIR}/MainPage/.env.yaml \
+  --entry-point=main \
   --region=us-west2 \
