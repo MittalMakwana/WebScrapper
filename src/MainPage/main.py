@@ -4,4 +4,4 @@ import os
 
 @functions_framework.http
 def main(request):
-    return os.environ.get('TEST')
+    return os.environ.get('FOO')
