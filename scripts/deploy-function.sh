@@ -3,11 +3,12 @@
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 SOURCE_DIR="${DIR}/../src"
 
-source "${DIR}/.env.local"
 
 gcloud functions \
-  deploy ${FUNCTION_NAME_HTTP} \
-  --source=${SOURCE_DIR} \
+  deploy MainPage \
+  --source=${SOURCE_DIR}/MainPage \
   --runtime=python311 \
   --trigger-http \
-  --allow-unauthenticated
+  --allow-unauthenticated \
+  --env-vars-file .env.yaml \
+  --region=us-west2 \
