@@ -1,7 +1,7 @@
 #! /bin/bash
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-SOURCE_DIR="${dirname $DIR}/src"
+SOURCE_DIR="$(dirname $DIR)/src"
 
 
 gcloud functions \
