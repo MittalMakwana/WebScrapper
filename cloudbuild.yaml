@@ -1,0 +1,4 @@
+steps:
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    args: ["./scripts/deploy-function.sh"]
+    waitFor: ["-"]
