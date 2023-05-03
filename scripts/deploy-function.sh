@@ -10,5 +10,5 @@ gcloud functions \
   --runtime=python311 \
   --trigger-http \
   --allow-unauthenticated \
-  --env-vars-file .env.yaml \
+  --env-vars-file ${SOURCE_DIR}/MainPage/.env.yaml \
   --region=us-west2 \
