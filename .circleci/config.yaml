@@ -1,0 +1,34 @@
+version: 2
+jobs:
+  deploy:
+    docker:
+      - image: google/cloud-sdk
+    steps:
+      - checkout
+      - run:
+          name: Authorize GCloud Command Line Tool
+          command: |
+            echo $GCLOUD_SERVICE_KEY | base64 --decode | gcloud auth activate-service-account --key-file=-
+      - run:
+          name: Deploy To Google Cloud Functions
+          command: |
+            # Variables
+            FUNCTION_NAME=MainPage
+            ENTRYPOINT=main
+            GCP_PROJECT=nimble-sylph-200818
+            # Deploy command
+            gcloud functions deploy $FUNCTION_NAME \
+              --entry-point $ENTRYPOINT \
+              --runtime python311 \
+              --trigger-http \
+              --source ./src/ \
+              --project $GCP_PROJECT
+workflows:
+  version: 2
+  build-test-and-deploy:
+    jobs:
+      - deploy:
+          filters:
+            branches:
+              only:
+                - main
