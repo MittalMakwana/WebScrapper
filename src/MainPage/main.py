@@ -48,7 +48,7 @@ class MainHTMLPage:
         self.meta = self._gen_meta(*args, **kwargs)
 
     def json(self):
-        return self._meta
+        return self.meta
 
     def __len__(self):
         return len(self.cards)
@@ -56,7 +56,7 @@ class MainHTMLPage:
     def _gen_meta(self, *args, **kwargs):
         meta = []
         for card in self.cards:
-            meta.append(HTMLCard(card, *args, **kwargs).json())
+            meta.append(HTMLCard(card, *args, **kwargs).meta)
         return meta
 
 
@@ -67,11 +67,9 @@ class HTMLCard:
         self.logger = logging.getLogger('HTMLCard')
         self.logger.debug(f"Processing: {card.text}")
         self.card = card
+        self.meta = self._parse_card()
         if kwargs.get('prod'):
             self._push_to_pubsub()
-
-    def json(self):
-        return self._parse_card()
 
     def _parse_card(self):
         meta = {}
@@ -106,7 +104,7 @@ def main(request):
     env = os.getenv('ENV')
     if env == 'prod':
         prod = True
-    page = MainHTMLPage(URL, prod=prod).meta
+    page = MainHTMLPage(URL, prod=prod).json()
     return page
 
 
