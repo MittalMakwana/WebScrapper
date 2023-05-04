@@ -5,6 +5,7 @@ import re
 from bs4 import BeautifulSoup
 import hashlib
 import logging
+from datetime import datetime
 from google.cloud import pubsub_v1
 
 logging.basicConfig(level=logging.INFO)
@@ -73,13 +74,21 @@ class HTMLCard:
         topic_id = os.getenv('TOPIC_ID')
         publisher = pubsub_v1.PublisherClient()
         topic_path = publisher.topic_path(project_id, topic_id)
-        publisher.publish(topic_path, str(self.meta).encode("utf-8"))
+        event_time = datetime.utcnow()
+        attributes = {
+            'id': str(self.meta['_id']),
+        }
+        publisher.publish(topic_path, str(self.meta).encode(
+            "utf-8"), attributes=str(attributes).encode("utf-8"))
 
 
 @functions_framework.http
 def main(request):
-    URL = "https://9xmovie.best/"
-    page = MainHTMLPage(URL, prod=True)
+    URL = os.getenv('BASE_URL')
+    env = os.getenv('ENV')
+    if env == 'prod':
+        prod = True
+    page = MainHTMLPage(URL, prod=prod)
     return page.json()
 
 
