@@ -84,17 +84,20 @@ class HTMLCard:
         return meta
 
     def _push_to_pubsub(self):
-        self.logger.info(f"Pushing {self.meta['name']} to pubsub")
-        project_id = os.getenv('PROJECT_ID')
-        topic_id = os.getenv('TOPIC_ID')
-        publisher = pubsub_v1.PublisherClient()
-        topic_path = publisher.topic_path(project_id, topic_id)
-        event_time = datetime.utcnow()
-        attributes = {
-            'id': str(self.meta['_id']),
-        }
-        publisher.publish(topic_path, str(self.meta).encode(
-            "utf-8"), attributes=str(attributes).encode("utf-8"))
+        if self.meta.get('_id'):
+            self.logger.info(f"Pushing {self.meta['name']} to pubsub")
+            project_id = os.getenv('PROJECT_ID')
+            topic_id = os.getenv('TOPIC_ID')
+            publisher = pubsub_v1.PublisherClient()
+            topic_path = publisher.topic_path(project_id, topic_id)
+            event_time = datetime.utcnow()
+            attributes = {
+                'id': str(self.meta['_id']),
+            }
+            publisher.publish(topic_path, str(self.meta).encode(
+                "utf-8"), attributes=str(attributes).encode("utf-8"))
+        else:
+            logging.warning(f"Skipping {self.card.text} no metadata found")
 
 
 @functions_framework.http
