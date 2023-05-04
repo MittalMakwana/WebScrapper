@@ -21,15 +21,19 @@ class CardRegex:
     _yr = r'(?P<yr>\d\d\d\d)?'
     _ordinal = r'(st|nd|rd|th)?\s'
     _ep = r'(?P<ep>(?:S\d*(EP?\d*T?O?\d*)?)?)'
+    _part = r'(Part \d)?'
     _view_type = r'(?P<view_type>3D|V2)\s'
-    CARD_REGEX = re.compile(
-        rf"{_name}\s(\((?P<dt>(?:{_day}{_ordinal}{_month})?{_yr})\)\s+)\s?{_ep}\s?({_view_type})?{_quality}\s?{_type}(.*)\[{_size}\]$")
+    _str = rf"{_name}\s(\((?P<dt>(?:{_day}{_ordinal}{_month})?{_yr})\)\s+)\s?{_ep}\s?({_view_type})?{_quality}\s?{_type}(.*)\[{_size}\]$"
+    CARD_REGEX = re.compile(_str)
 
     def __init__(self):
         self.regex = self.CARD_REGEX
 
     def match(self, card):
         return self.regex.match(card).groupdict()
+
+    def __repr__(self) -> str:
+        return self._str
 
 
 class MainHTMLPage:
@@ -41,13 +45,19 @@ class MainHTMLPage:
         self.soup = BeautifulSoup(self.page.content, "html.parser")
         self.logger.info("Parsing HTML")
         self.cards = self.soup.find_all('a', {"class": "thumbtitle"})
-        self.cards = [HTMLCard(card, *args, **kwargs) for card in self.cards]
+        self.meta = self._gen_meta(*args, **kwargs)
 
     def json(self):
-        return [card.meta for card in self.cards]
+        return self._meta
 
     def __len__(self):
         return len(self.cards)
+
+    def _gen_meta(self, *args, **kwargs):
+        meta = []
+        for card in self.cards:
+            meta.append(HTMLCard(card, *args, **kwargs).json())
+        return meta
 
 
 class HTMLCard:
@@ -55,17 +65,24 @@ class HTMLCard:
 
     def __init__(self, card, *args, **kwargs):
         self.logger = logging.getLogger('HTMLCard')
+        self.logger.debug(f"Processing: {card.text}")
         self.card = card
-        self.meta = self._parse_card()
         if kwargs.get('prod'):
             self._push_to_pubsub()
 
+    def json(self):
+        return self._parse_card()
+
     def _parse_card(self):
+        meta = {}
         self.logger.debug(f"Regex Matching {self.card.text}")
-        meta = self.CARD_REGEX.match(self.card.text)
-        meta['href'] = self.card.get('href')
-        meta['_id'] = int(hashlib.sha1(
-            meta['href'].encode("utf-8")).hexdigest(), 16) % (10 ** 8)
+        try:
+            meta = self.CARD_REGEX.match(self.card.text)
+            meta['href'] = self.card.get('href')
+            meta['_id'] = int(hashlib.sha1(meta['href'].encode(
+                "utf-8")).hexdigest(), 16) % (10 ** 8)
+        except AttributeError:
+            self.logger.error(f"Regex not matched for {self.card.text}")
         return meta
 
     def _push_to_pubsub(self):
@@ -84,13 +101,15 @@ class HTMLCard:
 
 @functions_framework.http
 def main(request):
+    prod = False
     URL = os.getenv('BASE_URL')
     env = os.getenv('ENV')
     if env == 'prod':
         prod = True
-    page = MainHTMLPage(URL, prod=prod)
-    return page.json()
+    page = MainHTMLPage(URL, prod=prod).meta
+    return page
 
 
 if __name__ == "__main__":
+    # print(repr(CardRegex()))
     main(None)
