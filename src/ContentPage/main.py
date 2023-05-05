@@ -83,7 +83,7 @@ def write_to_db(meta_data):
         collection.insert_one(meta_data)
         logging.info(f"Added collection:{meta_data['_id']}")
     except DuplicateKeyError:
-        logging.info(f"Document already exsit skipping {meta_data['_id']}")
+        logging.warning(f"Document already exsit skipping {meta_data['_id']}")
     pass
 
 
