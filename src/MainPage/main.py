@@ -115,15 +115,16 @@ def main(request):
     prod = False
     URL = os.getenv('BASE_URL')
     env = os.getenv('ENV')
-    result = []
+    result = {}
+    result['movies'] = []
     if env == 'prod':
         prod = True
     for i in range(start, end):
         _URL = URL + f"page/{i}/"
         page = MainHTMLPage(_URL, prod=prod).json()
         for movie in page:
-            result.append(movie)
-
+            result['movies'].append(movie)
+    result['total'] = len(result['movies'])
     return result
 
 
