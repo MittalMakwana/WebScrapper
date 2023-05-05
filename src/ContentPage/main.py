@@ -9,6 +9,11 @@ import ast
 from pymongo import MongoClient
 from pymongo.errors import DuplicateKeyError
 from google.cloud import secretmanager
+from google.cloud import logging as glogs
+
+if os.getenv('ENV') == 'prod':
+    logging_client = glogs.Client()
+    logging_client.setup_logging()
 
 logging.basicConfig(level=logging.INFO)
 

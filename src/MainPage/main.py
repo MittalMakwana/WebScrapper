@@ -7,7 +7,11 @@ import hashlib
 import logging
 from datetime import datetime
 from google.cloud import pubsub_v1
+from google.cloud import logging as glogs
 
+if os.getenv('ENV') == 'prod':
+    logging_client = glogs.Client()
+    logging_client.setup_logging()
 logging.basicConfig(level=logging.INFO)
 
 
