@@ -105,23 +105,24 @@ class HTMLCard:
             logging.warning(f"Skipping {self.card.text} no metadata found")
 
 
-@functions_framework.http
-def main(request):
+def vlidate_args(request):
     if request.args:
-        start = int(request.args.get('start'))
-        end = int(request.args.get('end'))
+        start = int(request.args.get('start', 1))
+        end = int(request.args.get('end', start)) + 1
     else:
         start, end = 1, 2
-    prod = False
-    URL = os.getenv('BASE_URL')
-    env = os.getenv('ENV')
+    return start, end
+
+
+@functions_framework.http
+def main(request):
+    start, end = vlidate_args(request)
+    url, env = os.getenv('BASE_URL'), os.getenv('ENV')
     result = {}
     result['movies'] = []
-    if env == 'prod':
-        prod = True
+    prod = True if env == 'prod' else False
     for i in range(start, end):
-        _URL = URL + f"page/{i}/"
-        page = MainHTMLPage(_URL, prod=prod).json()
+        page = MainHTMLPage(url + f"page/{i}/", prod=prod).json()
         for movie in page:
             result['movies'].append(movie)
     result['total'] = len(result['movies'])
@@ -131,5 +132,5 @@ def main(request):
 if __name__ == "__main__":
     # print(repr(CardRegex()))
     request = type('', (), {})()
-    request.args = {'start': 1, 'end': 3}
+    request.args = {}
     print(main(request))
