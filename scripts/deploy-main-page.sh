@@ -15,4 +15,4 @@ gcloud functions \
   --env-vars-file ${SOURCE_DIR}/${FUNCTION_NAME}/.env.yaml \
   --entry-point=main \
   --region=us-west2 \
-  --timeout=300 \
+  --timeout=600 \
