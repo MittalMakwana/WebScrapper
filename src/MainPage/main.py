@@ -1,7 +1,5 @@
 import functions_framework
 import os
-import requests
-import re
 from bs4 import BeautifulSoup
 import hashlib
 import logging
@@ -9,6 +7,11 @@ from datetime import datetime
 from google.cloud import pubsub_v1
 from google.cloud import logging as glogs
 from flask import request
+import asyncio
+
+from utils.regex import CardRegex
+from utils.url import AsyncHTTPClient
+
 
 if os.getenv('ENV') == 'prod':
     logging_client = glogs.Client()
@@ -16,39 +19,10 @@ if os.getenv('ENV') == 'prod':
 logging.basicConfig(level=logging.INFO)
 
 
-class CardRegex:
-    _name = r'(?P<name>.*)'
-    _size = r'(?P<size>.*)'
-    _quality = r'(?P<quality>\d+p)'
-    _type = r'(?P<type>\w*)'
-    _day = r'(?P<day>\d+)'
-    _month = r'(?P<month>.+)\s?'
-    _yr = r'(?P<yr>\d\d\d\d)?'
-    _ordinal = r'(st|nd|rd|th)?\s'
-    _ep = r'(?P<ep>(?:S\d*(EP?\d*T?O?\d*)?)?)'
-    _part = r'(Part \d)?\s?'
-    _view_type = r'(?P<view_type>3D|V2)\s'
-    _str = rf"{_name}\s(\((?P<dt>(?:{_day}{_ordinal}{_month})?{_yr})\)\s+)\s?{_ep}\s?{_part}({_view_type})?{_quality}\s?{_type}(.*)\[{_size}\]$"
-    CARD_REGEX = re.compile(_str)
-
-    def __init__(self):
-        self.regex = self.CARD_REGEX
-
-    def match(self, card):
-        return self.regex.match(card).groupdict()
-
-    def __repr__(self) -> str:
-        return self._str
-
-
 class MainHTMLPage:
-    def __init__(self, url, *args, **kwargs):
+    def __init__(self, html_text, *args, **kwargs):
         self.logger = logging.getLogger('MainHTMLPage')
-        self.url = url
-        self.logger.info(f"Fetching {self.url}")
-        self.page = requests.get(self.url)
-        self.soup = BeautifulSoup(self.page.content, "html.parser")
-        self.logger.info("Parsing HTML")
+        self.soup = BeautifulSoup(html_text, "html.parser")
         self.cards = self.soup.find_all('a', {"class": "thumbtitle"})
         self.meta = self._gen_meta(*args, **kwargs)
 
@@ -66,7 +40,6 @@ class MainHTMLPage:
 
 
 class HTMLCard:
-    CARD_REGEX = CardRegex()
 
     def __init__(self, card, *args, **kwargs):
         self.logger = logging.getLogger('HTMLCard')
@@ -77,15 +50,14 @@ class HTMLCard:
             self._push_to_pubsub()
 
     def _parse_card(self):
-        meta = {}
         self.logger.debug(f"Regex Matching {self.card.text}")
-        try:
-            meta = self.CARD_REGEX.match(self.card.text)
+        meta = CardRegex().match(self.card.text)
+        if meta:
             meta['href'] = self.card.get('href')
             meta['_id'] = int(hashlib.sha1(meta['href'].encode(
                 "utf-8")).hexdigest(), 16) % (10 ** 8)
-        except AttributeError:
-            self.logger.error(f"Regex not matched for {self.card.text}")
+        else:
+            logging.warning(f"Skipping {self.card.text} no metadata found")
         return meta
 
     def _push_to_pubsub(self):
@@ -114,23 +86,36 @@ def vlidate_args(request):
     return start, end
 
 
-@functions_framework.http
-def main(request):
+async def _main(request):
+    # Validate args
     start, end = vlidate_args(request)
     url, env = os.getenv('BASE_URL'), os.getenv('ENV')
     result = {}
     result['movies'] = []
     prod = True if env == 'prod' else False
-    for i in range(start, end):
-        page = MainHTMLPage(url + f"page/{i}/", prod=prod).json()
+    # Generate urls
+    urls = [url + f"page/{i}/" for i in range(start, end)]
+    # Fetch data Async
+    client = AsyncHTTPClient(urls)
+    text_data = await client.fetch_all_data()
+    await client.close()
+    # Parse data
+    logging.info(f"Processing {len(text_data)} pages")
+    for text in text_data:
+        page = MainHTMLPage(text, prod=prod).json()
         for movie in page:
             result['movies'].append(movie)
     result['total'] = len(result['movies'])
     return result
 
 
+@ functions_framework.http
+def main(request):
+    result = asyncio.run(_main(request))
+    return result
+
+
 if __name__ == "__main__":
-    # print(repr(CardRegex()))
     request = type('', (), {})()
-    request.args = {}
+    request.args = {'start': 3, 'end': 3}
     print(main(request))
