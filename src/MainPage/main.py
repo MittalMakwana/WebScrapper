@@ -8,6 +8,7 @@ import logging
 from datetime import datetime
 from google.cloud import pubsub_v1
 from google.cloud import logging as glogs
+from flask import request
 
 if os.getenv('ENV') == 'prod':
     logging_client = glogs.Client()
@@ -106,15 +107,28 @@ class HTMLCard:
 
 @functions_framework.http
 def main(request):
+    if request.args:
+        start = int(request.args.get('start'))
+        end = int(request.args.get('end'))
+    else:
+        start, end = 1, 2
     prod = False
     URL = os.getenv('BASE_URL')
     env = os.getenv('ENV')
+    result = []
     if env == 'prod':
         prod = True
-    page = MainHTMLPage(URL, prod=prod).json()
-    return page
+    for i in range(start, end):
+        _URL = URL + f"page/{i}/"
+        page = MainHTMLPage(_URL, prod=prod).json()
+        for movie in page:
+            result.append(movie)
+
+    return result
 
 
 if __name__ == "__main__":
     # print(repr(CardRegex()))
-    main(None)
+    request = type('', (), {})()
+    request.args = {'start': 1, 'end': 3}
+    print(main(request))
